@@ -5,8 +5,7 @@ import PyPDF2
 import boto3
 import json
 
-S3PASSWORD = "AKIAJIBMWABVERJTH4PQ"
-S3SECRET = "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"
+
 
 def get_file_name(file_string):
     
@@ -62,7 +61,6 @@ if __name__ == "__main__":
     
     #open the webpage
     html = urlopen("http://www.gov.yk.ca/forms/all.html")
-    #print(html.read())
 
     #create a list of all pdfs on the page
     soup = BeautifulSoup(html.read(), "html.parser")
@@ -84,7 +82,7 @@ if __name__ == "__main__":
 
         #if there is a category
         if cat:
-
+            print(forms.strings())
         
         #get the links from the anchor tags
 
@@ -115,8 +113,6 @@ if __name__ == "__main__":
 ##        aws_access_key_id = S3PASSWORD,
 ##        aws_secret_access_key = S3SECRET)
 ##    s3 = session.resource("s3")
-##    #bucket_list = [bucket.name for bucket in s3.buckets.all()]
-##    #print(bucket_list)
 ##    
 ##    
 ##    #bindata = b"data"
