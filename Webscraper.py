@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import boto3
 import json
 
-S3PASSWORD = 
+S3PASSWORD = "
 
 def get_file_name(file_string):
     
@@ -56,7 +56,8 @@ if __name__ == "__main__":
     soup = BeautifulSoup(html.read(), "html.parser")
     #print(soup.prettify())
     pdflist = []
-    manifest = []
+    manifest = {"form categories":[]}
+    catid = 0
 
     for forms in soup.find_all("p"):
 
@@ -93,23 +94,21 @@ if __name__ == "__main__":
                     #check if the category already exists, and add it
                     #if it doesn't
                     exists = 0
-                    if not manifest:
-                        manifest.append({"category": cat, "fileinfo": []})
-                        exists = 1
-                    else:
-                        for category in manifest:
-                            if category["category"] == cat:
-                                exists = 1
-                                break
+                    for category in manifest["form categories"]:
+                        if category["name"] == cat:
+                            exists = 1
+                            break
                     if not exists:
-                        manifest.append({"category": cat, "fileinfo": []})
-                                
+                        manifest["form categories"].append({"id":catid, "name": cat, "fileinfo": []})
+                        catid += 1
+                        
                      #find the category and add the entry
-                    for category in manifest:
-                        if category["category"] == cat:
+                    for category in manifest["form categories"]:
+                        if category["name"] == cat:
                             category["fileinfo"].append(
-                                {"fname":get_file_name(href.strip()),
-                                 "description": desc})
+                                {"description": desc,
+                                "pdf": href.strip(),
+                                 "json": get_file_name(href.strip())[:-4] + ".json"})
 
 
     #download all of the pdfs
@@ -124,10 +123,10 @@ if __name__ == "__main__":
             pdflist.remove(e404)
 
             #remove not found files from the manifest
-            name = get_file_name(e404)
-            for cat in manifest:
+            #name = get_file_name(e404)
+            for cat in manifest["form categories"]:
                 for i in range(len(cat["fileinfo"])):
-                    if cat["fileinfo"][i]["fname"] == name:
+                    if cat["fileinfo"][i]["pdf"] == e404:
                         del cat["fileinfo"][i]
                         break
 
@@ -141,12 +140,13 @@ if __name__ == "__main__":
         aws_secret_access_key = S3SECRET)
     s3 = session.resource("s3")
     
-    #upload all of the pdfs to S3
-    for pdf in pdflist:
-        upload_pdf(pdf, s3)
-        print(get_file_name(pdf) + " has been uploaded")
+##    #upload all of the pdfs to S3
+##    for pdf in pdflist:
+##        upload_pdf(pdf, s3)
+##        print(get_file_name(pdf) + " has been uploaded")
 
     #upload the manifest
-        s3.Bucket("yg-pdf").upload_file("manifest.json", f"raw_pdfs/{name}")
+    s3.Bucket("yg-pdf").upload_file("manifest.json", f"raw_pdfs/manifest.json")
+    print("Manifest uploaded")
         
-    print(len(pdflist))
+    #print(len(pdflist))
