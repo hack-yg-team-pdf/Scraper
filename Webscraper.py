@@ -1,11 +1,10 @@
 from urllib.request import urlopen
 import urllib.error
 from bs4 import BeautifulSoup
-import PyPDF2
 import boto3
 import json
 
-
+S3PASSWORD = 
 
 def get_file_name(file_string):
     
@@ -31,15 +30,6 @@ def download_pdf(url, msnglst):
         #write and close the file
         file.write(pdf_file.read())
         file.close()
-
-        #remove password protection
-##        with open(name, "rb") as openpdf:
-##            pdf = PyPDF2.PdfFileReader(openpdf)
-##            if pdf.isEncrypted:
-##                pdf.decrypt("")
-##                
-##            if pdf.isEncrypted:
-##                print(";(")
 
         #handle errors
     except urllib.error.HTTPError:
@@ -80,7 +70,7 @@ if __name__ == "__main__":
                 cat = catname
         except(AttributeError):
             None
-        print("\n")
+        #print("\n")
         #print(cat)
 
         #if there is a category, get the description
@@ -89,7 +79,7 @@ if __name__ == "__main__":
             for string in forms.stripped_strings:
                 if not desc:
                     desc = string
-            print(desc)
+            #print(desc)
 
             for link in forms.findChildren("a"):
 
@@ -97,7 +87,6 @@ if __name__ == "__main__":
                 href = link.get("href")
                 if href and href.strip()[-4:] == ".pdf":
                     pdflist.append(href.strip())
-                    print(link.get("href").strip())
 
                     #create the manifest entry
 
@@ -121,14 +110,12 @@ if __name__ == "__main__":
                             category["fileinfo"].append(
                                 {"fname":get_file_name(href.strip()),
                                  "description": desc})
-    print(manifest)
-    with open("manifest.json", "w") as outfile:
-        json.dump(manifest, outfile)
+
 
     #download all of the pdfs
     missinglist = []
     for pdf in pdflist:
-        #print(pdf)
+        print(pdf)
         download_pdf(pdf, missinglist)
         #print("\n")
 
@@ -136,24 +123,30 @@ if __name__ == "__main__":
         for e404 in missinglist:
             pdflist.remove(e404)
 
+            #remove not found files from the manifest
+            name = get_file_name(e404)
+            for cat in manifest:
+                for i in range(len(cat["fileinfo"])):
+                    if cat["fileinfo"][i]["fname"] == name:
+                        del cat["fileinfo"][i]
+                        break
+
+    #output the manifest
+    with open("manifest.json", "w") as outfile:
+        json.dump(manifest, outfile)                  
+
     #create S3 session
     session = boto3.Session(
         aws_access_key_id = S3PASSWORD,
         aws_secret_access_key = S3SECRET)
     s3 = session.resource("s3")
     
-    
-    #bindata = b"data"
-    #testobj = s3.Object("yg-pdf", "raw_pdfs/testbindata")
-    #testobj.put(Body = bindata)
-    
     #upload all of the pdfs to S3
     for pdf in pdflist:
         upload_pdf(pdf, s3)
         print(get_file_name(pdf) + " has been uploaded")
 
-    bucket = s3.Bucket("yg-pdf")
-    for obj in bucket.objects.all():
-        print(obj)
+    #upload the manifest
+        s3.Bucket("yg-pdf").upload_file("manifest.json", f"raw_pdfs/{name}")
         
     print(len(pdflist))
