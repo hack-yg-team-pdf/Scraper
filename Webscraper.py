@@ -66,66 +66,94 @@ if __name__ == "__main__":
     soup = BeautifulSoup(html.read(), "html.parser")
     #print(soup.prettify())
     pdflist = []
+    manifest = []
 
     for forms in soup.find_all("p"):
 
         #check if the tag is under a category
         cat = ""
         try:
+            #check if there is a category
             group = forms.findPreviousSibling("h3")
             groupname = group.findChild("strong").contents
             for catname in groupname: 
                 cat = catname
         except(AttributeError):
             None
-        print(cat)
+        print("\n")
+        #print(cat)
 
-        #if there is a category
-        if cat:
-            print(forms.strings())
+        #if there is a category, get the description
+        if cat:        
+            desc = ""
+            for string in forms.stripped_strings:
+                if not desc:
+                    desc = string
+            print(desc)
+
+            for link in forms.findChildren("a"):
+
+                #get the links from the anchor tags
+                href = link.get("href")
+                if href and href.strip()[-4:] == ".pdf":
+                    pdflist.append(href.strip())
+                    print(link.get("href").strip())
+
+                    #create the manifest entry
+
+                    #check if the category already exists, and add it
+                    #if it doesn't
+                    exists = 0
+                    if not manifest:
+                        manifest.append({"category": cat, "fileinfo": []})
+                        exists = 1
+                    else:
+                        for category in manifest:
+                            if category["category"] == cat:
+                                exists = 1
+                                break
+                    if not exists:
+                        manifest.append({"category": cat, "fileinfo": []})
+                                
+                     #find the category and add the entry
+                    for category in manifest:
+                        if category["category"] == cat:
+                            category["fileinfo"].append(
+                                {"fname":get_file_name(href.strip()),
+                                 "description": desc})
+    print(manifest)
+    with open("manifest.json", "w") as outfile:
+        json.dump(manifest, outfile)
+
+    #download all of the pdfs
+    missinglist = []
+    for pdf in pdflist:
+        #print(pdf)
+        download_pdf(pdf, missinglist)
+        #print("\n")
+
+    if missinglist:
+        for e404 in missinglist:
+            pdflist.remove(e404)
+
+    #create S3 session
+    session = boto3.Session(
+        aws_access_key_id = S3PASSWORD,
+        aws_secret_access_key = S3SECRET)
+    s3 = session.resource("s3")
+    
+    
+    #bindata = b"data"
+    #testobj = s3.Object("yg-pdf", "raw_pdfs/testbindata")
+    #testobj.put(Body = bindata)
+    
+    #upload all of the pdfs to S3
+    for pdf in pdflist:
+        upload_pdf(pdf, s3)
+        print(get_file_name(pdf) + " has been uploaded")
+
+    bucket = s3.Bucket("yg-pdf")
+    for obj in bucket.objects.all():
+        print(obj)
         
-        #get the links from the anchor tags
-
-        #for form in
-##        href = link.get("href")
-##
-##        #strip the href string and check the last for characters for .pdf
-##        if href and href.strip()[-4:] == ".pdf":
-##            print(parent.get_text()[:10])
-##            print("\n")
-##            pdflist.append(href.strip())
-##            #print(link.get("href").strip())
-##            #print(get_file_name(href))
-
-##    #download all of the pdfs
-##    missinglist = []
-##    for pdf in pdflist:
-##        #print(pdf)
-##        download_pdf(pdf, missinglist)
-##        #print("\n")
-##
-##    if missinglist:
-##        for e404 in missinglist:
-##            pdflist.remove(e404)
-##
-##    #create S3 session
-##    session = boto3.Session(
-##        aws_access_key_id = S3PASSWORD,
-##        aws_secret_access_key = S3SECRET)
-##    s3 = session.resource("s3")
-##    
-##    
-##    #bindata = b"data"
-##    #testobj = s3.Object("yg-pdf", "raw_pdfs/testbindata")
-##    #testobj.put(Body = bindata)
-##    
-##    #upload all of the pdfs to S3
-##    for pdf in pdflist:
-##        upload_pdf(pdf, s3)
-##        print(get_file_name(pdf) + " has been uploaded")
-##
-##    bucket = s3.Bucket("yg-pdf")
-##    for obj in bucket.objects.all():
-##        print(obj)
-##        
     print(len(pdflist))
