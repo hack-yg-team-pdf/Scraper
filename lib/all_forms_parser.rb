@@ -83,7 +83,7 @@ class AllFormsParser
   def parse_table(table)
     content = table.children[1].children[1].children
     my_enum = content.to_enum
-    all_forms = []
+    all_forms = {}
     dropped_elements = take_until(my_enum) { |e| e.name == 'h3' } # advance to first section
     begin
       while my_enum.peek # loop over sections
@@ -91,9 +91,8 @@ class AllFormsParser
         section_header = strip(section_header_element.text)
 
         this_sections_elements = take_until(my_enum) { |e| e.name == 'h3' }
-        this_sections_forms = this_sections_elements.select { |e| e.name == 'p' }.map { |p| parse_one_line(p) }.compact
-        this_sections_forms.each { |f| f.section = section_header }
-        all_forms += this_sections_forms
+        this_sections_forms = this_sections_elements.select { |e| e.name == 'p' }.map { |p| parse_one_line(p) }.compact.map(&:as_json)
+        all_forms[section_header] = this_sections_forms
       end
     rescue StopIteration => _
     end

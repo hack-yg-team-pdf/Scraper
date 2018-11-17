@@ -31,7 +31,7 @@ begin
 
     my_enum.next # drop one
     table = my_enum.next # now we've got the table
-    parsed_results[section_label] = my_parser.parse_table(table).map { |r| r.as_json }
+    parsed_results[section_label] = my_parser.parse_table(table)
   end
 rescue StopIteration => _
 end
